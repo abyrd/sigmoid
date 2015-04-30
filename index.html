@@ -1,0 +1,153 @@
+<body>
+    
+    <div>
+        <label for="offset">Offset</label>
+        <input type="range" id="offset" min="-125" max="125" value="4" />
+    </div>
+    <div>
+        <label for="cutoff">Cutoff</label>
+        <input type="range" id="cutoff" min="0" max="255" value="128" />
+    </div>
+    <div>
+        <label for="slope">Slope</label>
+        <input type="range" id="slope" min="0.01" max="0.5" step="0.001" value="0.5" />
+    </div>
+    
+    <!-- A grid: rows are centered, offset, difference; columns are distance, threshold, logistic sigmoid -->
+    <div id="centeredRow">
+    <div id="offsetRow">
+    <div id="differenceRow">
+        
+    <!-- Final conclusion: add a slider that progressively adds more and more office buildings into a total accessibility indicator (sums and normalizes), which still has the sigmoid and hard cutoff options. -->
+    
+    <script>
+
+
+(function() {
+'use strict';
+
+// On canvases: https://www.mapbox.com/bites/00009/
+
+var width = 250;
+var height = 250;
+var N = width * height;
+
+function makeCanvas (id) {
+  var canvas = document.createElement('canvas');
+  canvas.id = id;
+  canvas.width = width;
+  canvas.height = height;
+  document.body.appendChild(canvas);
+  return canvas;
+}
+
+function makeEmptyImageData () {
+    var ret = new Array(N);
+    for (var i = 0; i < N; i++) {
+      ret[i] = 0;
+    }
+    return ret;
+}
+
+function distance (x0, y0, x1, y1) {
+    var dx = x1 - x0;
+    var dy = y1 - y0;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function makeDistanceImageData (cX, cY) {
+    var dat = makeEmptyImageData();
+    for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+            dat[y * width + x] = distance(cX, cY, x, y)
+        }
+    }
+    return dat;
+}
+
+function makeDistanceCanvas (canvas, distanceData, scale, signed) {
+    var ctx = canvas.getContext("2d");
+    var imgData = ctx.createImageData(width, height);  
+    var data = imgData.data;
+    // Iterate over distance values
+    var j = 0;
+    for (var i = 0; i < N; i++) {
+        var val = distanceData[i] * scale;
+        if (signed) {
+            // Blue-red color scheme for positive and negative
+            if (val >= 0) {
+                data[j++] = 32;
+                data[j++] = 32;
+                data[j++] = 32 + val;
+                data[j++] = 255;
+            } else {
+                data[j++] = 32 - val;
+                data[j++] = 32;
+                data[j++] = 32;
+                data[j++] = 255;
+            }
+        } else {
+            // set RGB all to the same value
+            data[j++] = val;
+            data[j++] = val;
+            data[j++] = val;
+            data[j++] = 255;
+        }
+    }
+    ctx.putImageData(imgData, 0, 0);
+}
+
+function threshold (array, cutoff) {
+    var result = new Array(N);
+    for (var i = 0; i < N; i++) {
+        result[i] = (array[i] < cutoff) ? 1 : 0;
+    }
+    return result;
+}
+
+function logistic (array, cutoff, slope) {
+    var result = new Array(N);
+    for (var i = 0; i < N; i++) {
+        result[i] = 1 / (1 + Math.exp(slope * (array[i] - cutoff)));
+    }
+    return result;
+}
+
+var centerCanvas   = makeCanvas('centerCanvas');
+var offsetCanvas   = makeCanvas('offsetCanvas');
+var threshCanvas   = makeCanvas('threshCanvas');
+var logisticCanvas = makeCanvas('logisticCanvas');
+var diffCanvas     = makeCanvas('diffCanvas');
+
+var slider = document.getElementById("offset");
+slider.style.width = "750px";
+var cutoff = document.getElementById("cutoff");
+cutoff.style.width = "750px";
+var slope = document.getElementById("slope");
+slope.style.width = "750px";
+
+// change event triggered on mouse release; input event triggered on mouse move.
+slider.oninput = function() {
+    // WTF slider.value is a string?
+    var distDataCenter = makeDistanceImageData(width / 2, height / 2);
+    var distDataOffset = makeDistanceImageData(width / 2 + parseInt(slider.value), height / 2);
+    var distDataThresh = threshold(distDataOffset, cutoff.value);
+    var distDataLogistic = logistic(distDataOffset, cutoff.value, slope.value); 
+    var distDataDiff = new Array(N);
+    for (var i = 0; i < N; i++) {
+        distDataDiff[i] = distDataOffset[i] - distDataCenter[i];
+    }    
+    makeDistanceCanvas(centerCanvas, distDataCenter, 1.5);
+    makeDistanceCanvas(offsetCanvas, distDataOffset, 1.5);
+    makeDistanceCanvas(threshCanvas, distDataThresh, 255);
+    makeDistanceCanvas(logisticCanvas, distDataLogistic, 255);
+    makeDistanceCanvas(diffCanvas, distDataDiff, 15, true);
+};
+cutoff.oninput = slider.oninput;
+slope.oninput = slider.oninput;
+slider.oninput(); // trigger draw on page load
+
+}()); // close namespace and call to execute.
+
+</script>
+</body>
