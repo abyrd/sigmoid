@@ -37,8 +37,8 @@
 // On canvases: https://www.mapbox.com/bites/00009/
 // Use specific-width arrays
 
-var width = 250;
-var height = 250;
+var width = 200;
+var height = 200;
 var N = width * height;
 
 function makeCanvas (id, parent) {
@@ -185,8 +185,9 @@ applyDataToCanvas(centerDistanceCanvas,  centerDistanceData,  1.5);
 
 // Distance data from off-of-center point, changes whenever x and y sliders move
 function updateOffsetDistance() {
-    offsetDistanceData = makeDistanceData(width / 2 + parseInt(offsetX.value), height / 2 + parseInt(offsetY.value));
+    //offsetDistanceData = makeDistanceData(width / 2 + parseInt(offsetX.value), height / 2 + parseInt(offsetY.value));
     deltaDistanceData  = elementWiseDelta(centerDistanceData,  offsetDistanceData);
+    applyDataToCanvas(centerDistanceCanvas, offsetDistanceData, 1.5);
     applyDataToCanvas(offsetDistanceCanvas, offsetDistanceData, 1.5);
     var deltaScale = normalize.checked ? 0 : 50;
     applyDataToCanvas(deltaDistanceCanvas, deltaDistanceData, deltaScale, true); // auto normalize, bidirectional signal
@@ -220,6 +221,52 @@ function updateCanvases () {
     applyDataToCanvas(deltaLogisticCanvas,   deltaLogisticData ,  deltaScale, true);
 
 };
+
+// Load travel time data A from an image file.
+var imga = new Image();
+imga.onload = function() { 
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    var context = canvas.getContext("2d");
+    context.drawImage(imga,0,0);
+    var dat = makeEmptyImageData();
+    var rgbaData = context.getImageData(0, 0, width, height);
+    for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+            var pos = y * width + x;
+            dat[pos] = rgbaData.data[4 * pos];
+            console.log(dat[y * width + x]);
+        }
+    }
+    centerDistanceData = dat;
+    updateOffsetDistance();
+};
+imga.src = "pdx_raster_a.png";
+
+// Load travel time data B from an image file.
+var imgb = new Image();
+imgb.onload = function() { 
+    var canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    var context = canvas.getContext("2d");
+    context.drawImage(imgb,0,0);
+    var dat = makeEmptyImageData();
+    var rgbaData = context.getImageData(0, 0, width, height);
+    for (var y = 0; y < height; y++) {
+        for (var x = 0; x < width; x++) {
+            var pos = y * width + x;
+            dat[pos] = rgbaData.data[4 * pos];
+            console.log(dat[y * width + x]);
+        }
+    }
+    offsetDistanceData = dat;
+    updateOffsetDistance();
+};
+imgb.src = "pdx_raster_b.png";
+
+
 
 // The change event is triggered on mouse release; the input event is triggered on mouse move.
 // TODO centered images do not always need to be updated. Cutoff and slope for the two rows could be decoupled.
