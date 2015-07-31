@@ -1,4 +1,4 @@
-<body>
+<body bgcolor="#f5f5f5" text="black">
 
     <div>
         <label for="cutoff">Cutoff</label>
@@ -68,7 +68,7 @@ function applyDataToCanvas (canvas, dataIn, scale, signed) {
     var data = imgData.data;
     if (scale == 0) {
         // Auto-normalize
-        var absMax = Math.max(Math.max(...dataIn), -Math.min(...dataIn));
+        var absMax = Math.max(Math.max.apply(Math, dataIn), -Math.min.apply(Math, dataIn));
         scale = 255 / absMax;
     }
     // Iterate over distance values
@@ -161,7 +161,7 @@ var deltaLogisticData;
 function updateAll() {
     deltaDistanceData  = elementWiseDelta(centerDistanceData,  offsetDistanceData);
     applyDataToCanvas(centerDistanceCanvas, centerDistanceData, 1.5);
-    applyDataToCanvas(deltaDistanceCanvas, deltaDistanceData, 18, true); // auto normalize, bidirectional signal    
+    applyDataToCanvas(deltaDistanceCanvas, deltaDistanceData, 18, true);
     updateThreshold(); // cascade redraw of all other canvases 
 }
 
