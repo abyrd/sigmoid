@@ -1,29 +1,17 @@
 <body>
-    
-    <div width="750px">
-        <label for="offsetX">Offset X</label>
-        <input type="range" id="offsetX" min="-125" max="125" value="2" />
-    </div>
-    <div>
-        <label for="offsetY">Offset Y</label>
-        <input type="range" id="offsetY" min="-125" max="125" value="2" />
-    </div>
+
     <div>
         <label for="cutoff">Cutoff</label>
-        <input type="range" id="cutoff" min="0" max="255" value="90" />
+        <input type="range" id="cutoff" min="0" max="100" value="70" />
     </div>
     <div>
         <label for="slope">Slope</label>
-        <input type="range" id="slope" min="0.01" max="1" step="0.001" value="0.5" />
-    </div>
-    <div>
-        <input type="checkbox" id="normalize" checked="true">Normalize delta display</input>
+        <input type="range" id="slope" min="0.01" max="1" step="0.001" value="0.7" />
     </div>
     
     <!-- A grid with rows (centered, offset, difference) and columns (distance, threshold, logistic) -->
     <!-- make canvas here instead of programmatically? make divs programmatically? -->
     <div id="centerRow"> </div>
-    <div id="offsetRow"> </div>
     <div id="deltaRow"> </div>
         
     <!-- Final conclusion: add a slider that progressively adds more and more office buildings into a total accessibility indicator (sums and normalizes), which still has the sigmoid and hard cutoff options. -->
@@ -37,8 +25,8 @@
 // On canvases: https://www.mapbox.com/bites/00009/
 // Use specific-width arrays
 
-var width = 200;
-var height = 200;
+var width = 400;
+var height = 286;
 var N = width * height;
 
 function makeCanvas (id, parent) {
@@ -138,25 +126,16 @@ function elementWiseDelta (array0, array1) {
 
 // Grab sliders and other input widgets and set their widths
 
-var offsetX = document.getElementById("offsetX");
-offsetX.style.width = "100%";
-var offsetY = document.getElementById("offsetY");
-offsetY.style.width = "100%";
 var cutoff = document.getElementById("cutoff");
 cutoff.style.width = "100%";
 var slope = document.getElementById("slope");
 slope.style.width = "100%";
-var normalize = document.getElementById("normalize");
 
 // Create a grid of canvases
 
 var centerDistanceCanvas  = makeCanvas('centerDistanceCanvas',  'centerRow');
 var centerThresholdCanvas = makeCanvas('centerThresholdCanvas', 'centerRow');
 var centerLogisticCanvas  = makeCanvas('centerLogisticCanvas',  'centerRow');
-
-var offsetDistanceCanvas  = makeCanvas('offsetDistanceCanvas',  'offsetRow');
-var offsetThresholdCanvas = makeCanvas('offsetThresholdCanvas', 'offsetRow');
-var offsetLogisticCanvas  = makeCanvas('offsetLogisticCanvas',  'offsetRow');
 
 var deltaDistanceCanvas  = makeCanvas('deltaDistanceCanvas',  'deltaRow');
 var deltaThresholdCanvas = makeCanvas('deltaThresholdCanvas', 'deltaRow'); 
@@ -179,47 +158,28 @@ var deltaDistanceData;
 var deltaThresholdData;
 var deltaLogisticData;
 
-// Distance data from center point never changes so only calculate and display it once
-var centerDistanceData  = makeDistanceData(width / 2, height / 2);
-applyDataToCanvas(centerDistanceCanvas,  centerDistanceData,  1.5);
-
-// Distance data from off-of-center point, changes whenever x and y sliders move
-function updateOffsetDistance() {
-    //offsetDistanceData = makeDistanceData(width / 2 + parseInt(offsetX.value), height / 2 + parseInt(offsetY.value));
+function updateAll() {
     deltaDistanceData  = elementWiseDelta(centerDistanceData,  offsetDistanceData);
-    applyDataToCanvas(centerDistanceCanvas, offsetDistanceData, 1.5);
-    applyDataToCanvas(offsetDistanceCanvas, offsetDistanceData, 1.5);
-    var deltaScale = normalize.checked ? 0 : 50;
-    applyDataToCanvas(deltaDistanceCanvas, deltaDistanceData, deltaScale, true); // auto normalize, bidirectional signal
-    updateCanvases(); // cascade redraw of all other canvases 
+    applyDataToCanvas(centerDistanceCanvas, centerDistanceData, 1.5);
+    applyDataToCanvas(deltaDistanceCanvas, deltaDistanceData, 50, true); // auto normalize, bidirectional signal    
+    updateThreshold(); // cascade redraw of all other canvases 
 }
 
-// Threshold and logistic curve displays, update whenever any parameters change
-function updateCanvases () {
-
-    // Centered departure point 
+function updateThreshold () {
     centerThresholdData = threshold(centerDistanceData, cutoff.value);
-    centerLogisticData = logistic(centerDistanceData, cutoff.value, slope.value); 
-
-    // Off-center departure point
     offsetThresholdData = threshold(offsetDistanceData, cutoff.value);
-    offsetLogisticData = logistic(offsetDistanceData, cutoff.value, slope.value); 
-    
-    // The difference of the offset and centered results
     deltaThresholdData = elementWiseDelta(centerThresholdData, offsetThresholdData);
-    deltaLogisticData = elementWiseDelta(centerLogisticData,  offsetLogisticData); 
-    
-    var deltaScale = normalize.checked ? 0 : 350;
-    
     applyDataToCanvas(centerThresholdCanvas, centerThresholdData, 255);
+    applyDataToCanvas(deltaThresholdCanvas, deltaThresholdData, 255, true);
+    updateLogistic(); // cascade redraw of sigmoid smoothed data
+};
+
+function updateLogistic () {
+    centerLogisticData = logistic(centerDistanceData, cutoff.value, slope.value); 
+    offsetLogisticData = logistic(offsetDistanceData, cutoff.value, slope.value); 
+    deltaLogisticData = elementWiseDelta(centerLogisticData,  offsetLogisticData); 
     applyDataToCanvas(centerLogisticCanvas,  centerLogisticData , 255);
-
-    applyDataToCanvas(offsetThresholdCanvas, offsetThresholdData, 255);
-    applyDataToCanvas(offsetLogisticCanvas,  offsetLogisticData , 255);
-
-    applyDataToCanvas(deltaThresholdCanvas,  deltaThresholdData,  255,        true);
-    applyDataToCanvas(deltaLogisticCanvas,   deltaLogisticData ,  deltaScale, true);
-
+    applyDataToCanvas(deltaLogisticCanvas,   deltaLogisticData ,  350, true);
 };
 
 // Load travel time data A from an image file.
@@ -236,11 +196,10 @@ imga.onload = function() {
         for (var x = 0; x < width; x++) {
             var pos = y * width + x;
             dat[pos] = rgbaData.data[4 * pos];
-            console.log(dat[y * width + x]);
         }
     }
     centerDistanceData = dat;
-    updateOffsetDistance();
+    updateAll(); // trigger full redraw when image data is processed
 };
 imga.src = "pdx_raster_a.png";
 
@@ -258,25 +217,19 @@ imgb.onload = function() {
         for (var x = 0; x < width; x++) {
             var pos = y * width + x;
             dat[pos] = rgbaData.data[4 * pos];
-            console.log(dat[y * width + x]);
         }
     }
     offsetDistanceData = dat;
-    updateOffsetDistance();
+    updateAll(); // trigger full redraw when image data is processed
 };
 imgb.src = "pdx_raster_b.png";
 
-
-
 // The change event is triggered on mouse release; the input event is triggered on mouse move.
 // TODO centered images do not always need to be updated. Cutoff and slope for the two rows could be decoupled.
-offsetX.oninput = updateOffsetDistance;
-offsetY.oninput = updateOffsetDistance;
-cutoff.oninput = updateCanvases;
-slope.oninput = updateCanvases;
-normalize.onchange = updateOffsetDistance;
+cutoff.oninput = updateThreshold;
+slope.oninput = updateLogistic;
 
-updateOffsetDistance(); // trigger full redraw on page load
+updateAll(); // trigger full redraw
 
 // TODO ondrag for the three offset canvases
 
