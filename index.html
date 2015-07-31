@@ -161,7 +161,7 @@ var deltaLogisticData;
 function updateAll() {
     deltaDistanceData  = elementWiseDelta(centerDistanceData,  offsetDistanceData);
     applyDataToCanvas(centerDistanceCanvas, centerDistanceData, 1.5);
-    applyDataToCanvas(deltaDistanceCanvas, deltaDistanceData, 50, true); // auto normalize, bidirectional signal    
+    applyDataToCanvas(deltaDistanceCanvas, deltaDistanceData, 18, true); // auto normalize, bidirectional signal    
     updateThreshold(); // cascade redraw of all other canvases 
 }
 
